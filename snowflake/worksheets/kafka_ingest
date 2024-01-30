@@ -1,0 +1,34 @@
+CREATE ROLE kafka_connector_role;
+
+grant role kafka_connector_role to role sysadmin;
+
+GRANT USAGE, OPERATE ON WAREHOUSE COMPUTE_WH TO ROLE kafka_connector_role;
+
+create or replace schema snowflake_poc.kafka_schema;
+
+grant usage on database snowflake_poc to role kafka_connector_role;
+
+GRANT USAGE ON SCHEMA snowflake_poc.kafka_schema TO ROLE kafka_connector_role;
+GRANT CREATE TABLE ON SCHEMA snowflake_poc.kafka_schema TO ROLE kafka_connector_role;
+GRANT CREATE STAGE ON SCHEMA snowflake_poc.kafka_schema TO ROLE kafka_connector_role;
+GRANT CREATE PIPE ON SCHEMA snowflake_poc.kafka_schema TO ROLE kafka_connector_role;
+
+CREATE USER kafka_user PASSWORD='kafka123' DEFAULT_ROLE = kafka_connector_role;
+
+grant role kafka_connector_role to user kafka_user;
+
+show users;
+
+alter user kafka_user set rsa_public_key='MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAvhm7WDXykrRP3gYo98Se
+U+6vJwkbaUENCD6BVcMxifisk6FFDm4QueBXNOWmnSWOQAi4/uYQGfmdHmdtHKRb
+QRwoEdtPydYAjFr9i8m/Y4fDagwmDFXMECk9d9ukMTlmOdY0p/KX8Vm0Px81V7or
++YXGmMTzp+VgxTDPacLekA5T4+lYe/rGjTQjuOwAvwarN/jRX6B5fZ+LMd57J9yg
+mmPANzPXMRykwAcmWOhUija8+9JX0XqLI0fzPJjpnuPqV40nAoIwHPKBn6BNm1z2
+xd51V0NM9WmhSais6km3CeXKSW4Frvhpmeh9J7s0F+rHFDZxmra5javHny62FWb2
+nQIDAQAB';
+
+desc user kafka_user;
+
+select * from customer;
+
+show pipes;

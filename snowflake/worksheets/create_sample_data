@@ -1,0 +1,36 @@
+create database snowflake_poc;
+
+use database snowflake_poc;
+
+create or replace table nation as select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.NATION;
+
+select * from nation;
+
+create table region as select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.REGION;
+
+select * from region;
+
+desc table region;
+
+create table supplier as select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.SUPPLIER limit 1000;
+
+select count(*) from supplier;
+
+create table partsupp as select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.PARTSUPP where ps_suppkey in (select s_suppkey from supplier);
+
+select count(*) from partsupp;
+select count(*) from (select distinct PS_PARTKEY from partsupp);
+
+create table part as select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.PART where p_partkey in (select ps_partkey from partsupp);
+
+select count(*) from part;
+
+create table lineitem as select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.LINEITEM where L_PARTKEY in (select ps_partkey from partsupp) AND L_SUPPKEY in (select ps_suppkey from partsupp) limit 300000;
+
+select count(*) from lineitem;
+
+create table orders as select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.ORDERS where O_ORDERKEY in (select L_ORDERKEY from lineitem);
+select count(*) from orders;
+
+create table customer as select * from SNOWFLAKE_SAMPLE_DATA.TPCH_SF1.CUSTOMER where C_CUSTKEY in (select O_CUSTKEY from orders);
+select count(*) from customer;

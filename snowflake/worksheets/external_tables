@@ -1,0 +1,71 @@
+create or replace storage integration s3_int
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = S3
+  ENABLED = TRUE 
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::356967975209:role/rajesh_snowflake_poc_role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://rajesh-tests/snowflake_poc/');
+
+desc integration s3_int;
+
+create schema file_formats;
+
+CREATE OR REPLACE file format file_formats.csv_fileformat
+    type = csv
+    field_delimiter = ','
+    skip_header = 1
+    null_if = ('NULL','null')
+    empty_field_as_null = TRUE;
+
+create schema EXTERNAL_TABLES;
+
+CREATE OR REPLACE stage external_stages.customer_stage
+    URL = 's3://rajesh-tests/snowflake_poc/SampleData/customer_partitioned/'
+    STORAGE_INTEGRATION = s3_int
+    FILE_FORMAT = snowflake_poc.file_formats.csv_fileformat;
+
+list @external_stages.customer_stage;
+
+select cs.$1 from @external_stages.customer_stage cs;
+
+create or replace external TABLE SNOWFLAKE_POC.external_tables.CUSTOMER (
+	C_CUSTKEY NUMBER as (value:c1::NUMBER),
+	C_NAME VARCHAR as (value:c2::VARCHAR),
+	C_ADDRESS VARCHAR as (value:c3::VARCHAR),
+	C_NATIONKEY NUMBER as (value:c4::NUMBER),
+	C_PHONE VARCHAR as (value:c5::VARCHAR),
+	C_ACCTBAL NUMBER as (value:c6::NUMBER),
+	C_MKTSEGMENT VARCHAR as (value:c7::VARCHAR),
+	C_COMMENT VARCHAR as (value:c8::VARCHAR)
+)
+with location=@external_stages.customer_stage
+auto_refresh = false
+file_format = snowflake_poc.file_formats.csv_fileformat;
+
+select count(*) from external_tables.customer;
+select * from external_tables.customer limit 10;
+
+create or replace external TABLE SNOWFLAKE_POC.external_tables.CUSTOMER_PARTITIONED (
+    partition_col VARCHAR AS split_part(metadata$filename,'/',4),
+	C_CUSTKEY NUMBER as (value:c1::NUMBER),
+	C_NAME VARCHAR as (value:c2::VARCHAR),
+	C_ADDRESS VARCHAR as (value:c3::VARCHAR),
+	C_NATIONKEY NUMBER as (value:c4::NUMBER),
+	C_PHONE VARCHAR as (value:c5::VARCHAR),
+	C_ACCTBAL NUMBER as (value:c6::NUMBER),
+	C_MKTSEGMENT VARCHAR as (value:c7::VARCHAR),
+	C_COMMENT VARCHAR as (value:c8::VARCHAR)
+)
+partition by (partition_col)
+with location=@external_stages.customer_stage
+auto_refresh = TRUE
+file_format = snowflake_poc.file_formats.csv_fileformat;
+
+show external tables;
+
+desc table SNOWFLAKE_POC.external_tables.CUSTOMER_PARTITIONED; 
+
+Select count(*) from SNOWFLAKE_POC.external_tables.CUSTOMER_PARTITIONED;
+
+select count(*) from SNOWFLAKE_POC.external_tables.CUSTOMER_PARTITIONED where partition_col='data_0_0';
+
+select * from SNOWFLAKE_POC.external_tables.CUSTOMER_PARTITIONED limit 10;

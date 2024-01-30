@@ -1,0 +1,169 @@
+create or replace database snowflake_poc;
+
+create or replace storage integration s3_int
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = S3
+  ENABLED = TRUE 
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::356967975209:role/rajesh_snowflake_poc_role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://rajesh-tests/snowflake_poc/');
+
+desc integration s3_int;
+
+create schema file_formats;
+
+CREATE OR REPLACE file format file_formats.csv_fileformat
+    type = csv
+    field_delimiter = ','
+    skip_header = 1
+    null_if = ('NULL','null')
+    empty_field_as_null = TRUE;
+
+create schema EXTERNAL_STAGES;
+
+CREATE OR REPLACE stage external_stages.csv_load
+    URL = 's3://rajesh-tests/snowflake_poc/SampleData/'
+    STORAGE_INTEGRATION = s3_int
+    FILE_FORMAT = snowflake_poc.file_formats.csv_fileformat;
+
+create or replace TABLE SNOWFLAKE_POC.PUBLIC.NATION (
+	N_NATIONKEY NUMBER(38,0),
+	N_NAME VARCHAR(25),
+	N_REGIONKEY NUMBER(38,0),
+	N_COMMENT VARCHAR(152)
+);
+
+copy into public.nation from @external_stages.csv_load/nation/;
+//truncate nation;
+select * from nation;
+
+create or replace TABLE SNOWFLAKE_POC.PUBLIC.REGION (
+	R_REGIONKEY NUMBER(38,0),
+	R_NAME VARCHAR(25),
+	R_COMMENT VARCHAR(152)
+);
+
+select * from region;
+//truncate region;
+copy into region from @external_stages.csv_load/region/;
+
+create or replace TABLE SNOWFLAKE_POC.PUBLIC.SUPPLIER (
+	S_SUPPKEY NUMBER(38,0),
+	S_NAME VARCHAR(25),
+	S_ADDRESS VARCHAR(40),
+	S_NATIONKEY NUMBER(38,0),
+	S_PHONE VARCHAR(15),
+	S_ACCTBAL NUMBER(12,2),
+	S_COMMENT VARCHAR(101)
+);
+
+select count(*) from supplier;
+//truncate supplier;
+copy into supplier from @external_stages.csv_load/supplier/;
+
+create or replace TABLE SNOWFLAKE_POC.PUBLIC.PART (
+	P_PARTKEY NUMBER(38,0),
+	P_NAME VARCHAR(55),
+	P_MFGR VARCHAR(25),
+	P_BRAND VARCHAR(10),
+	P_TYPE VARCHAR(25),
+	P_SIZE NUMBER(38,0),
+	P_CONTAINER VARCHAR(10),
+	P_RETAILPRICE NUMBER(12,2),
+	P_COMMENT VARCHAR(23)
+);
+
+select count(*) from part;
+//truncate part;
+copy into part from @external_stages.csv_load/part/;
+
+create or replace TABLE SNOWFLAKE_POC.PUBLIC.PARTSUPP (
+	PS_PARTKEY NUMBER(38,0),
+	PS_SUPPKEY NUMBER(38,0),
+	PS_AVAILQTY NUMBER(38,0),
+	PS_SUPPLYCOST NUMBER(12,2),
+	PS_COMMENT VARCHAR(199)
+);
+
+select count(*) from partsupp;
+//truncate partsupp;
+copy into partsupp from @external_stages.csv_load/partsupp/;
+
+create or replace TABLE SNOWFLAKE_POC.PUBLIC.ORDERS (
+	O_ORDERKEY NUMBER(38,0),
+	O_CUSTKEY NUMBER(38,0),
+	O_ORDERSTATUS VARCHAR(1),
+	O_TOTALPRICE NUMBER(12,2),
+	O_ORDERDATE DATE,
+	O_ORDERPRIORITY VARCHAR(15),
+	O_CLERK VARCHAR(15),
+	O_SHIPPRIORITY NUMBER(38,0),
+	O_COMMENT VARCHAR(79)
+);
+
+select count(*) from orders;
+//truncate orders;
+copy into orders from @external_stages.csv_load/orders/;
+
+create or replace TABLE SNOWFLAKE_POC.PUBLIC.LINEITEM (
+	L_ORDERKEY NUMBER(38,0),
+	L_PARTKEY NUMBER(38,0),
+	L_SUPPKEY NUMBER(38,0),
+	L_LINENUMBER NUMBER(38,0),
+	L_QUANTITY NUMBER(12,2),
+	L_EXTENDEDPRICE NUMBER(12,2),
+	L_DISCOUNT NUMBER(12,2),
+	L_TAX NUMBER(12,2),
+	L_RETURNFLAG VARCHAR(1),
+	L_LINESTATUS VARCHAR(1),
+	L_SHIPDATE DATE,
+	L_COMMITDATE DATE,
+	L_RECEIPTDATE DATE,
+	L_SHIPINSTRUCT VARCHAR(25),
+	L_SHIPMODE VARCHAR(10),
+	L_COMMENT VARCHAR(44)
+);
+
+select count(*) from lineitem;
+//truncate lineitem;
+copy into lineitem from @external_stages.csv_load/lineitem/;
+
+create or replace TABLE SNOWFLAKE_POC.PUBLIC.CUSTOMER (
+	C_CUSTKEY NUMBER(38,0),
+	C_NAME VARCHAR(25),
+	C_ADDRESS VARCHAR(40),
+	C_NATIONKEY NUMBER(38,0),
+	C_PHONE VARCHAR(15),
+	C_ACCTBAL NUMBER(12,2),
+	C_MKTSEGMENT VARCHAR(10),
+	C_COMMENT VARCHAR(117)
+);
+
+select count(*) from customer;
+//truncate customer;
+copy into customer from @external_stages.csv_load/customer/;
+
+create or replace schema pipes;
+
+// Define pipe
+CREATE OR REPLACE pipe pipes.customer_pipe
+auto_ingest = TRUE
+AS
+COPY INTO public.customer
+FROM @external_stages.csv_load/customer/;
+
+// Describe pipe
+DESC pipe pipes.customer_pipe;
+
+//alter pipe pipes.customer_pipe refresh;
+
+//alter pipe pipes.customer_pipe SET PIPE_EXECUTION_PAUSED = false;
+
+select SYSTEM$PIPE_STATUS('pipes.customer_pipe');
+
+SELECT * FROM TABLE(VALIDATE_PIPE_LOAD(
+    PIPE_NAME => 'SNOWFLAKE_POC.PIPES.CUSTOMER_PIPE',
+    START_TIME => DATEADD(HOUR,-2,CURRENT_TIMESTAMP())));
+
+SELECT * FROM TABLE (INFORMATION_SCHEMA.COPY_HISTORY(
+   table_name  =>  'SNOWFLAKE_POC.PUBLIC.CUSTOMER',
+   START_TIME =>DATEADD(HOUR,-1,CURRENT_TIMESTAMP())));

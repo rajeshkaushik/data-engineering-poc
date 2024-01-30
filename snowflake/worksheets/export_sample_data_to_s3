@@ -1,0 +1,60 @@
+create or replace storage integration s3_int
+  TYPE = EXTERNAL_STAGE
+  STORAGE_PROVIDER = S3
+  ENABLED = TRUE 
+  STORAGE_AWS_ROLE_ARN = 'arn:aws:iam::356967975209:role/rajesh_snowflake_poc_role'
+  STORAGE_ALLOWED_LOCATIONS = ('s3://rajesh-tests/snowflake_poc/');
+
+desc integration s3_int;
+
+create schema file_formats;
+
+CREATE OR REPLACE file format file_formats.csv_fileformat_out
+    type = csv
+    field_delimiter = ','
+
+create schema EXTERNAL_STAGES;
+
+CREATE OR REPLACE stage external_stages.csv_folder
+    URL = 's3://rajesh-tests/snowflake_poc/TPCH/'
+    STORAGE_INTEGRATION = s3_int
+    FILE_FORMAT = snowflake_poc.file_formats.csv_fileformat_out;
+    
+list @external_stages.csv_folder;
+
+copy into @external_stages.csv_folder/nation/ from public.nation
+HEADER=TRUE
+overwrite=true;
+
+copy into @external_stages.csv_folder/region/ from public.region
+HEADER=TRUE
+overwrite=true;
+
+copy into @external_stages.csv_folder/supplier/ from public.supplier
+HEADER=TRUE
+overwrite=true;
+
+copy into @external_stages.csv_folder/partsupp/ from public.partsupp
+max_file_size=100000
+HEADER=TRUE
+overwrite=true;
+
+copy into @external_stages.csv_folder/part/ from public.part
+max_file_size=100000
+HEADER=TRUE
+overwrite=true;
+
+copy into @external_stages.csv_folder/orders/ from public.orders
+max_file_size=100000
+HEADER=TRUE
+overwrite=true;
+
+copy into @external_stages.csv_folder/lineitem/ from public.lineitem
+max_file_size=100000
+HEADER=TRUE
+overwrite=true;
+
+copy into @external_stages.csv_folder/customer/ from public.customer
+max_file_size=100000
+HEADER=TRUE
+overwrite=true;
